@@ -2,8 +2,8 @@
   <img
     src="https://raw.githubusercontent.com/uzairshahidgithub/Libre-Merger/f87fa006bee5699c183b24862326045741389518/Libre%20Merger.png"
     alt="Libre Merger Logo"
-    width="360"
-    height='320'
+    width="260"
+    height='420'
   />
 </p>
 
