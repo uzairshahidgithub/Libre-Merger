@@ -32,14 +32,14 @@
 <br />
 
 ## Key Highlights
-* **Multi-format support** — merge DOCX, ODT, PDF, XLSX, PPTX, TXT, RTF, and CSV in any combination
-* **Watermark text & PDF password** — stamp a custom watermark and lock your output PDF with a password before sharing
-* **Flexible and manual sorting** — auto-sort by name or date, or fully drag-and-customize document order with per-document page limits
-* **Smart compression** — reduce output file size with quality optimized for AI attachments and fast sharing
-* **DOCX and PDF output** — choose your output format and save results into organized folders automatically
-* **Original PDF names preserved in outline** — source filenames appear as bookmarks inside the merged document for easy navigation
-* **Currently Windows only** — macOS and Linux support coming soon
-* **100% free** — no subscriptions, no account, no hidden costs, forever
+* **Multi-format support** merge DOCX, ODT, PDF, XLSX, PPTX, TXT, RTF, and CSV in any combination
+* **Watermark text & PDF password** stamp a custom watermark and lock your output PDF with a password before sharing
+* **Flexible and manual sorting** auto-sort by name or date, or fully drag-and-customize document order with per-document page limits
+* **Smart compression** reduce output file size with quality optimized for AI attachments and fast sharing
+* **DOCX and PDF output** choose your output format and save results into organized folders automatically
+* **Original PDF names preserved in outline** source filenames appear as bookmarks inside the merged document for easy navigation
+* **Currently Windows only** macOS and Linux support coming soon
+* **100% free** no subscriptions, no account, no hidden costs, forever
 
 ## Supported Formats
 | Format | Extension | Support |
