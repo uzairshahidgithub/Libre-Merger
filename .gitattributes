@@ -1,0 +1,2 @@
+dist/Setup.exe filter=lfs diff=lfs merge=lfs -text
+build/Setup/Setup.pkg filter=lfs diff=lfs merge=lfs -text
