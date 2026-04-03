@@ -12,7 +12,7 @@
 <p align="center" style="max-width: 800px; margin: 0 auto;">
   A free, community-driven document tool that harnesses the full power of
   <strong>LibreOffice</strong> to automatically merge, split, convert, and watermark
-  <strong>any document type</strong> you attach — entirely offline, entirely free,
+  <strong>any document type</strong> you attach entirely offline, entirely free,
   with no subscriptions, no cloud uploads, and no proprietary lock-in.
   Built for developers, legal professionals, students, and anyone who works with documents.
 </p>
