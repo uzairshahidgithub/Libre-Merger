@@ -2,11 +2,12 @@
   <img
     src="https://raw.githubusercontent.com/uzairshahidgithub/Libre-Merger/f87fa006bee5699c183b24862326045741389518/Libre%20Merger.png"
     alt="Libre Merger Logo"
-    width="480"
+    width="460"
+    height='560'
   />
 </p>
 
-<h2 align="center">Libre Merger — Open-Source Automated Document Merger</h2>
+<h2 align="center">Libre Merger - Open-Source Automated Document Merger</h2>
 
 <p align="center" style="max-width: 800px; margin: 0 auto;">
   A free, community-driven document tool that harnesses the full power of
@@ -26,7 +27,6 @@
   <img src="https://img.shields.io/badge/Linux-Coming%20Soon-lightgrey.svg" alt="Linux Coming Soon" />
   <img src="https://img.shields.io/badge/Status-Active-brightgreen.svg" alt="Active" />
   <img src="https://img.shields.io/badge/Python-3.x-blue.svg" alt="Python 3.x" />
-  <img src="https://img.shields.io/badge/PRs-Welcome-orange.svg" alt="PRs Welcome" />
 </p>
 
 <br />
