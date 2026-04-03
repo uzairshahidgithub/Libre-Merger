@@ -85,7 +85,7 @@ Once LibreOffice is confirmed working:
 4. Click **Merge** to generate your combined document
 5. Choose your output location and format
 
-## For Developers — Build from Source
+## For Developers Build from Source
 
 ### Prerequisites
 | Tool | Version | Download |
