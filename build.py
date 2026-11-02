@@ -1,6 +1,7 @@
-import PyInstaller.__main__
-import shutil
 import os
+import sys
+import shutil
+import subprocess
 from PIL import Image
 
 def main():
@@ -8,7 +9,6 @@ def main():
     logo_path = "Libre Merger.png"
     
     # Check if we should regenerate the icon
-    # Condition: icon missing OR logo is newer than icon (updated artwork)
     regenerate = False
     if not os.path.exists(icon_path):
         regenerate = True
@@ -26,7 +26,19 @@ def main():
     else:
         print(f"Pre-processing: Using existing {icon_path}")
 
-    # Phase 1: Compile the raw Libre Merger application
+    # Linux Build Pipeline: Standalone binary + .deb package
+    if sys.platform.startswith("linux"):
+        import build_deb
+        print("\n--------------------------------------------------------------")
+        print("Detected Linux / Ubuntu Platform — Launching Debian Build...")
+        print("--------------------------------------------------------------\n")
+        build_deb.main()
+        return
+
+    # Windows Build Pipeline: Core Exe + Setup.exe Wizard
+    import PyInstaller.__main__
+    sep = os.pathsep
+
     print("\n--------------------------------------------------------------")
     print("PHASE 1: Building Core Libre Merger Executable...")
     print("--------------------------------------------------------------\n")
@@ -35,14 +47,13 @@ def main():
         '--name=LibreMerger',
         '--onefile',
         '--windowed',
-        '--add-data=Libre Merger.png;.',
-        '--add-data=icon.ico;.',
+        f'--add-data=Libre Merger.png{sep}.',
+        f'--add-data=icon.ico{sep}.',
         '--icon=icon.ico',
         '--log-level=WARN',
         '--clean'
     ])
     
-    # Phase 2: Compile the Installer application carrying the finished Phase-1 Exe as a payload
     print("\n--------------------------------------------------------------")
     print("PHASE 2: Building Final Setup.exe Wizard Installer...")
     print("--------------------------------------------------------------\n")
@@ -57,9 +68,9 @@ def main():
         '--name=Setup',
         '--onefile',
         '--windowed',
-        f'--add-data={core_exe_path};.',
-        '--add-data=Libre Merger.png;.',
-        '--add-data=icon.ico;.',
+        f'--add-data={core_exe_path}{sep}.',
+        f'--add-data=Libre Merger.png{sep}.',
+        f'--add-data=icon.ico{sep}.',
         '--icon=icon.ico',
         '--log-level=WARN',
         '--clean'
@@ -74,6 +85,4 @@ def main():
 
 
 if __name__ == '__main__':
-    for d in ['build', 'dist']:
-        if os.path.exists(d): shutil.rmtree(d, ignore_errors=True)
     main()

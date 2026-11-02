@@ -22,9 +22,9 @@
 <p align="center">
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT License" />
   <img src="https://img.shields.io/badge/LibreOffice-Powered-1C87D0.svg" alt="LibreOffice Powered" />
+  <img src="https://img.shields.io/badge/Platform-Linux%20Ubuntu-E95420.svg" alt="Ubuntu Linux" />
   <img src="https://img.shields.io/badge/Platform-Windows-0078D4.svg" alt="Windows" />
   <img src="https://img.shields.io/badge/macOS-Coming%20Soon-lightgrey.svg" alt="macOS Coming Soon" />
-  <img src="https://img.shields.io/badge/Linux-Coming%20Soon-lightgrey.svg" alt="Linux Coming Soon" />
   <img src="https://img.shields.io/badge/Status-Active-brightgreen.svg" alt="Active" />
   <img src="https://img.shields.io/badge/Python-3.x-blue.svg" alt="Python 3.x" />
 </p>
@@ -38,7 +38,7 @@
 * **Smart compression** reduce output file size with quality optimized for AI attachments and fast sharing
 * **DOCX and PDF output** choose your output format and save results into organized folders automatically
 * **Original PDF names preserved in outline** source filenames appear as bookmarks inside the merged document for easy navigation
-* **Currently Windows only** macOS and Linux support coming soon
+* **Cross-platform** Native Linux Ubuntu `.deb` package & Windows installer supported
 * **100% free** no subscriptions, no account, no hidden costs, forever
 
 ## Supported Formats
@@ -55,35 +55,54 @@
 
 ## Quick Setup for New Users
 
-### Step 1: Install LibreOffice (Required)
-Libre Merger uses LibreOffice to process Word, Excel, and PowerPoint files. It must be installed before running the app.
+### Option A: Linux (Ubuntu / Debian `.deb`)
 
-Download the latest stable version for your OS:
+#### 1. Install LibreOffice
+LibreOffice powers document conversion in Libre Merger. Install it via apt:
+```bash
+sudo apt update
+sudo apt install -y libreoffice
 ```
-https://www.libreoffice.org/download/download/
+
+#### 2. Install the Libre Merger `.deb` Package
+Locate `libre-merger_1.0.0_amd64.deb` in the `dist/` directory:
+```bash
+sudo apt install ./dist/libre-merger_1.0.0_amd64.deb
 ```
-Run the installer and follow the default on-screen instructions. No custom configuration needed.
+*(Or via dpkg: `sudo dpkg -i dist/libre-merger_1.0.0_amd64.deb`)*
 
-Verify the installation by opening **LibreOffice Writer** from your applications. If it launches, you are ready.
+#### 3. Launch Libre Merger
+Launch from your application launcher under **Office** or via terminal:
+```bash
+libre-merger
+```
+You can also queue documents directly:
+```bash
+libre-merger doc1.pdf doc2.docx notes.txt
+```
 
-### Step 2: Run the Libre Merger Installer
-Once LibreOffice is confirmed working:
+---
 
-1. Navigate to the **`dist/`** folder in this project directory
-2. Locate the file named **`Setup.exe`**
-3. **Double-click `Setup.exe`** to launch the installation wizard
-4. Follow the prompts — the installer will create:
-   - A Desktop shortcut
-   - A Start Menu entry
+### Option B: Windows
 
-> **Windows SmartScreen Notice:** If Windows shows a security warning, click **"More info"** then **"Run anyway"**. This is standard behavior for open-source unsigned installers.
+#### 1. Install LibreOffice (Required)
+Download the latest version for Windows from [libreoffice.org](https://www.libreoffice.org/download/download/) and install with default settings.
+
+#### 2. Run the Libre Merger Installer
+1. Navigate to the `dist/` directory
+2. Double-click `Setup.exe` to launch the installation wizard
+3. The wizard will create a Desktop shortcut and Start Menu entry
+
+> **Windows SmartScreen Notice:** If Windows shows a security warning, click **"More info" → "Run anyway"**.
+
+---
 
 ### Step 3: Start Merging
-1. Open **Libre Merger** from your Desktop or Start Menu
-2. Drag and drop your documents into the application window
-3. Arrange the file order if needed
-4. Click **Merge** to generate your combined document
-5. Choose your output location and format
+1. Open **Libre Merger** from your desktop or application menu
+2. Drag and drop or click **＋ Add Documents** to import documents
+3. Arrange the file order or set custom page ranges (e.g. `1-3, 5`)
+4. Adjust optional watermark, password encryption, or compression settings
+5. Click **🔀 Merge** to generate your combined document
 
 ## For Developers Build from Source
 
@@ -97,25 +116,34 @@ Once LibreOffice is confirmed working:
 
 ### Step 1: Clone the Repository
 ```bash
-git clone https://github.com/uzairshahidgithub/libre-merger.git
-cd libre-merger
+git clone https://github.com/uzairshahidgithub/Libre-Merger.git
+cd "Libre Merger"
 ```
 
-### Step 2: Install Dependencies
+### Step 2: Set Up Virtual Environment & Dependencies
 ```bash
-pip install -r requirements.txt
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt pytest
 ```
 
 ### Step 3: Run in Development Mode
 ```bash
-python main.py
+python merger.py
 ```
 
-### Step 4: Build the Installer
-Run the automated build script to generate `Setup.exe` inside `dist/`:
+### Step 4: Run Automated Tests
+```bash
+pytest tests/ -v
+```
+
+### Step 5: Build Package
+Run the unified build script:
 ```bash
 python build.py
 ```
+* **On Linux (Ubuntu / Debian):** Automatically compiles the standalone binary and packages `dist/libre-merger_1.0.0_amd64.deb`.
+* **On Windows:** Packages `dist/LibreMerger.exe` and `dist/Setup.exe`.
 
 ## Troubleshooting
 
@@ -141,12 +169,11 @@ Ensure all fonts used in source documents are installed on your system. LibreOff
 Split documents into smaller groups, merge each group separately, then merge the outputs together.
 
 ## Compatibility
+* Linux Ubuntu 20.04 / 22.04 / 24.04 / 26.04+ (Debian `.deb` package)
 * Windows 10 / 11
 * macOS — Coming Soon
-* Linux — Coming Soon
-* Python 3.8 — 3.12
-* LibreOffice 7.x — 24.x
-* No WSL required
+* Python 3.8 — 3.14
+* LibreOffice 7.x — 26.x
 * No internet connection required
 
 ## Security

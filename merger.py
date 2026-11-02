@@ -15,10 +15,13 @@ import tkinter as tk
 from pathlib import Path
 
 try:
-    import fitz  # PyMuPDF
+    import pymupdf as fitz
 except ImportError:
-    print("Error: PyMuPDF is not installed. Please install it using: pip install PyMuPDF")
-    sys.exit(1)
+    try:
+        import fitz  # PyMuPDF fallback
+    except ImportError:
+        print("Error: PyMuPDF is not installed. Please install it using: pip install PyMuPDF")
+        sys.exit(1)
 
 try:
     import customtkinter as ctk
@@ -50,11 +53,33 @@ def register_toplevel(win):
     _open_toplevels.append(win)
     win.bind("<Destroy>", lambda e, w=win: _open_toplevels.remove(w) if w in _open_toplevels else None)
 
+def set_window_icon(win):
+    """Sets application window icon on Windows and Linux X11/Wayland."""
+    # On Linux / X11 / Wayland Tkinter, iconphoto with PNG is standard and crisp
+    png_path = resource_path("Libre Merger.png")
+    if os.path.exists(png_path):
+        try:
+            from PIL import ImageTk
+            img = Image.open(png_path)
+            # Resize to standard icon dimensions to avoid X11 BadLength protocol limit
+            img = img.resize((256, 256), Image.Resampling.LANCZOS)
+            win._photo_icon_ref = ImageTk.PhotoImage(img)
+            win.iconphoto(True, win._photo_icon_ref)
+            return
+        except Exception:
+            pass
+    # On Windows fallback to .ico
+    ico_path = resource_path("icon.ico")
+    if os.path.exists(ico_path):
+        try:
+            win.iconbitmap(ico_path)
+        except Exception:
+            pass
+
 def refresh_all_icons():
-    ico = resource_path("icon.ico")
     for win in list(_open_toplevels):
         try:
-            win.iconbitmap(ico)
+            set_window_icon(win)
         except Exception:
             pass
 
@@ -62,9 +87,23 @@ def refresh_all_icons():
 # Backend Helpers
 # ----------------------------------------------------------------------
 
+def get_libreoffice_cmd():
+    """Discover LibreOffice / soffice binary across platforms."""
+    for cmd in ["soffice", "libreoffice"]:
+        found = shutil.which(cmd)
+        if found:
+            return found
+    for p in ["/usr/bin/libreoffice", "/usr/bin/soffice", "/usr/local/bin/libreoffice", "/usr/local/bin/soffice"]:
+        if os.path.exists(p) and os.access(p, os.X_OK):
+            return p
+    return None
+
 def check_libreoffice():
+    cmd = get_libreoffice_cmd()
+    if not cmd:
+        return False
     try:
-        subprocess.run(["soffice", "--version"], capture_output=True, check=True)
+        subprocess.run([cmd, "--version"], capture_output=True, check=True)
         return True
     except (subprocess.SubprocessError, FileNotFoundError):
         return False
@@ -73,7 +112,7 @@ def is_image(ext):
     return ext in ['jpg', 'jpeg', 'png', 'tiff', 'bmp']
 
 def is_libreoffice_supported(ext):
-    return ext in ['docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'csv', 'txt', 'html']
+    return ext in ['docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'csv', 'txt', 'html', 'htm', 'odt', 'ods', 'odp', 'rtf']
 
 def convert_image_to_pdf(input_path, output_dir):
     try:
@@ -88,10 +127,25 @@ def convert_image_to_pdf(input_path, output_dir):
         return None
 
 def convert_lo_to_pdf(input_path, output_dir):
+    lo_cmd = get_libreoffice_cmd()
+    if not lo_cmd:
+        print("Error: LibreOffice not found.")
+        return None
     input_path = Path(input_path).resolve()
     output_dir = Path(output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    cmd = ["soffice", "--headless", "--convert-to", "pdf", "--outdir", str(output_dir), str(input_path)]
+    # Use isolated user profile for headless conversion to avoid lockups with open GUI LibreOffice
+    profile_dir = Path(tempfile.gettempdir()) / f"lo_profile_{os.getpid()}"
+    profile_uri = profile_dir.as_uri()
+
+    cmd = [
+        lo_cmd,
+        f"-env:UserInstallation={profile_uri}",
+        "--headless",
+        "--convert-to", "pdf",
+        "--outdir", str(output_dir),
+        str(input_path)
+    ]
     try:
         flags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
         subprocess.run(cmd, check=True, capture_output=True, text=True, creationflags=flags)
@@ -104,18 +158,20 @@ def convert_lo_to_pdf(input_path, output_dir):
 def parse_page_ranges(pages_str, max_pages):
     if not pages_str or str(pages_str).strip().lower() == "all": return None
     pages = set()
-    try:
-        for part in str(pages_str).split(','):
-            part = part.strip()
+    for part in str(pages_str).split(','):
+        part = part.strip()
+        if not part: continue
+        try:
             if '-' in part:
-                start_str, end_str = part.split('-')
-                start_idx = max(0, int(start_str) - 1)
-                end_idx = min(max_pages - 1, int(end_str) - 1)
+                start_str, end_str = part.split('-', 1)
+                start_idx = max(0, int(start_str.strip()) - 1)
+                end_idx = min(max_pages - 1, int(end_str.strip()) - 1)
                 for i in range(start_idx, end_idx + 1): pages.add(i)
             else:
                 idx = int(part) - 1
                 if 0 <= idx < max_pages: pages.add(idx)
-    except Exception: pass
+        except Exception:
+            continue
     return sorted(list(pages)) if pages else None
 
 def apply_watermark(doc, watermark_text):
@@ -126,20 +182,36 @@ def apply_watermark(doc, watermark_text):
         except Exception as e:
             print(f"Warning: Failed to watermark {page.number}: {e}")
 
+def get_icon_font():
+    font_candidates = [
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "LiberationSans-Bold.ttf",
+        "DejaVuSans-Bold.ttf",
+        "arialbd.ttf",
+        "arial.ttf",
+    ]
+    for candidate in font_candidates:
+        try:
+            return ImageFont.truetype(candidate, 10)
+        except (IOError, OSError):
+            continue
+    return ImageFont.load_default()
+
 def create_file_icon(ext):
     ext = ext.lower()
     img = Image.new("RGB", (32, 32), color=(255, 255, 255))
     draw = ImageDraw.Draw(img)
     colors = {
-        'pdf': '#E5252A', 'docx': '#2B579A', 'doc': '#2B579A',
-        'pptx': '#D24726', 'ppt': '#D24726', 'xlsx': '#217346',
-        'xls': '#217346', 'csv': '#217346', 'jpg': '#8E44AD',
-        'png': '#8E44AD', 'txt': '#34495E', 'html': '#E67E22'
+        'pdf': '#E5252A', 'docx': '#2B579A', 'doc': '#2B579A', 'odt': '#2B579A',
+        'pptx': '#D24726', 'ppt': '#D24726', 'odp': '#D24726',
+        'xlsx': '#217346', 'xls': '#217346', 'ods': '#217346', 'csv': '#217346',
+        'jpg': '#8E44AD', 'jpeg': '#8E44AD', 'png': '#8E44AD', 'tiff': '#8E44AD', 'bmp': '#8E44AD',
+        'txt': '#34495E', 'rtf': '#34495E', 'html': '#E67E22', 'htm': '#E67E22'
     }
     bg_color = colors.get(ext, '#888888')
     draw.rectangle([0, 0, 32, 32], fill=bg_color)
-    try: font = ImageFont.truetype("arialbd.ttf", 10)
-    except IOError: font = ImageFont.load_default()
+    font = get_icon_font()
     text = ext.upper()
     try:
         bbox = font.getbbox(text)
@@ -208,15 +280,10 @@ class CustomMessageBox(ctk.CTkToplevel):
         self.title(title)
         self.geometry("460x240")
         self.resizable(False, False)
-        # Defer iconbitmap — CTkToplevel needs a tick to fully initialise on Windows
-        self.after(50, lambda: self._set_icon())
+        self.after(50, lambda: set_window_icon(self))
         self.transient(master)
         self.grab_set()
         register_toplevel(self)
-
-    def _set_icon(self):
-        try: self.iconbitmap(resource_path("icon.ico"))
-        except: pass
 
         _add_branded_header(self, "Libre Merger", title)
 
@@ -233,7 +300,7 @@ class CustomMessageBox(ctk.CTkToplevel):
                      font=("Segoe UI", 13), wraplength=400, justify="center").pack(pady=5)
         ctk.CTkButton(body, text="  OK  ", width=120,
                       corner_radius=8,
-                      fg_color=color, hover_color=LIBRE_HOVER if msg_type=="info" else LIBRE_RED_H,
+                      fg_color=color, hover_color=LIBRE_HOVER if msg_type == "info" else LIBRE_RED_H,
                       font=ctk.CTkFont(size=13, weight="bold"),
                       command=self.destroy).pack(pady=10)
 
@@ -250,8 +317,7 @@ class PageSelectionDialog(ctk.CTkToplevel):
         self.geometry("420x230")
         self.resizable(False, False)
         self.result = None
-        # Defer icon so Toplevel is fully ready
-        self.after(50, lambda: self._set_icon())
+        self.after(50, lambda: set_window_icon(self))
         self.transient(master)
         self.grab_set()
         register_toplevel(self)
@@ -289,10 +355,6 @@ class PageSelectionDialog(ctk.CTkToplevel):
                       command=self.apply).pack(side="left", padx=10)
 
         _center_bottom_of_parent(self, master)
-
-    def _set_icon(self):
-        try: self.iconbitmap(resource_path("icon.ico"))
-        except: pass
 
     def apply(self):
         self.result = self.entry.get()
@@ -425,9 +487,8 @@ class LibreMergerApp(ctk.CTk):
         self.title("Libre Merger")
         self.geometry("870x660")
         self.minsize(760, 560)
-        # Set icon immediately, then re-apply after idle to ensure taskbar shows it
-        try: self.iconbitmap(resource_path("icon.ico"))
-        except: pass
+        # Set icon immediately, then re-apply after idle
+        set_window_icon(self)
         self.after(200, self._reapply_icon)
         self.files_to_merge = []
         self.row_widgets = []
@@ -440,8 +501,7 @@ class LibreMergerApp(ctk.CTk):
         self.build_settings()
 
     def _reapply_icon(self):
-        try: self.iconbitmap(resource_path("icon.ico"))
-        except: pass
+        set_window_icon(self)
 
     # ------------------------------------------------------------------
     # Header
@@ -453,9 +513,12 @@ class LibreMergerApp(ctk.CTk):
 
         img_path = resource_path("Libre Merger.png")
         if os.path.exists(img_path):
-            logo_img = Image.open(img_path)
-            self.header_logo = ctk.CTkImage(logo_img, size=(34, 34))
-            ctk.CTkLabel(header, text="", image=self.header_logo).pack(side="left", padx=(15, 8), pady=10)
+            try:
+                logo_img = Image.open(img_path)
+                self.header_logo = ctk.CTkImage(logo_img, size=(34, 34))
+                ctk.CTkLabel(header, text="", image=self.header_logo).pack(side="left", padx=(15, 8), pady=10)
+            except Exception as e:
+                print(f"Warning: Could not render header logo image: {e}")
 
         ctk.CTkLabel(header, text="Libre Merger",
                      font=ctk.CTkFont(family="Segoe UI", size=23, weight="bold"),
@@ -495,8 +558,7 @@ class LibreMergerApp(ctk.CTk):
                     final_text = "🌙 Dark"
                 self.theme_btn.configure(text=final_text, state="normal")
                 # Re-apply icon to main window AND all open children
-                try: self.iconbitmap(resource_path("icon.ico"))
-                except: pass
+                set_window_icon(self)
                 self.after(150, refresh_all_icons)
 
         _spin()
@@ -570,8 +632,7 @@ class LibreMergerApp(ctk.CTk):
         about.resizable(False, False)
         about.transient(self)
         about.grab_set()
-        # Defer icon — required on Windows for CTkToplevel
-        about.after(50, lambda: about.iconbitmap(resource_path("icon.ico")))
+        about.after(50, lambda: set_window_icon(about))
         register_toplevel(about)
 
         _add_branded_header(about, "Libre Merger", "About This Application")
@@ -603,21 +664,38 @@ class LibreMergerApp(ctk.CTk):
             self._icons_cache[ext] = create_file_icon(ext)
         return self._icons_cache[ext]
 
-    def add_files(self):
-        file_paths = filedialog.askopenfilenames(
-            title="Import Documents",
-            filetypes=[("All Supported", "*.pdf;*.pptx;*.docx;*.jpg;*.png;*.txt;*.csv;*.xlsx;*.html"),
-                       ("All files", "*.*")]
-        )
-        if file_paths:
-            for path in file_paths:
-                ext = os.path.splitext(path)[1][1:].lower()
-                if ext == 'pdf' or is_libreoffice_supported(ext) or is_image(ext):
-                    self.files_to_merge.append({'path': path, 'ext': ext, 'pages': 'all'})
+    def queue_files(self, file_paths):
+        """Add list of file paths to the merge queue."""
+        added = False
+        for path in file_paths:
+            path = str(Path(path).resolve())
+            if not os.path.exists(path):
+                continue
+            ext = os.path.splitext(path)[1][1:].lower()
+            if ext == 'pdf' or is_libreoffice_supported(ext) or is_image(ext):
+                self.files_to_merge.append({'path': path, 'ext': ext, 'pages': 'all'})
+                added = True
+        if added:
             if self.sort_var.get() != "Manual Order":
                 self.apply_sorting(self.sort_var.get())
             else:
                 self.refresh_list_ui()
+
+    def add_files(self):
+        filetypes = [
+            ("All Supported", "*.pdf *.docx *.doc *.odt *.pptx *.ppt *.odp *.xlsx *.xls *.ods *.csv *.txt *.rtf *.html *.htm *.jpg *.jpeg *.png *.tiff *.bmp"),
+            ("PDF Documents", "*.pdf"),
+            ("Office Documents", "*.docx *.doc *.odt *.pptx *.ppt *.odp *.xlsx *.xls *.ods *.csv"),
+            ("Images", "*.jpg *.jpeg *.png *.tiff *.bmp"),
+            ("Text & Web", "*.txt *.rtf *.html *.htm"),
+            ("All Files", "*.*")
+        ]
+        file_paths = filedialog.askopenfilenames(
+            title="Import Documents",
+            filetypes=filetypes
+        )
+        if file_paths:
+            self.queue_files(file_paths)
 
     def clear_files(self):
         self.files_to_merge.clear()
@@ -648,7 +726,15 @@ class LibreMergerApp(ctk.CTk):
         self.refresh_list_ui()
 
     def open_file(self, path):
-        if os.name == 'nt': os.startfile(path)
+        try:
+            if os.name == 'nt':
+                os.startfile(path)
+            elif sys.platform == 'darwin':
+                subprocess.Popen(['open', str(path)])
+            else:
+                subprocess.Popen(['xdg-open', str(path)])
+        except Exception as e:
+            print(f"Error opening {path}: {e}")
 
     def move_row(self, index, direction):
         new_idx = index + direction
@@ -847,9 +933,13 @@ class LibreMergerApp(ctk.CTk):
                 elif out_fmt == "DOCX (via LibreOffice)":
                     tmp_pdf_out = os.path.join(tmpdir, "final_merged_temp.pdf")
                     master_doc.save(tmp_pdf_out)
+                    lo_cmd = get_libreoffice_cmd() or "soffice"
+                    profile_dir = Path(tempfile.gettempdir()) / f"lo_profile_{os.getpid()}"
+                    profile_uri = profile_dir.as_uri()
                     flags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
                     subprocess.run(
-                        ["soffice", "--headless", "--infilter=writer_pdf_import",
+                        [lo_cmd, f"-env:UserInstallation={profile_uri}",
+                         "--headless", "--infilter=writer_pdf_import",
                          "--convert-to", "docx", "--outdir",
                          str(Path(output_path).parent), tmp_pdf_out],
                         check=True, creationflags=flags
@@ -861,8 +951,8 @@ class LibreMergerApp(ctk.CTk):
                 self.update_status("✅ Success!", 1.0)
                 self.after(0, lambda: CustomMessageBox(self, "Merge Complete",
                     f"Processing complete!\nSaved to:\n{output_path}", msg_type="info"))
-                if self.open_file_var.get() and os.name == 'nt':
-                    os.startfile(output_path)
+                if self.open_file_var.get():
+                    self.open_file(output_path)
 
         except Exception as e:
             self.update_status("An error occurred.", 0)
@@ -873,5 +963,19 @@ class LibreMergerApp(ctk.CTk):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] in ("--version", "-v"):
+        print("Libre Merger v1.0.0 (Linux Ubuntu Edition)")
+        sys.exit(0)
+    if len(sys.argv) > 1 and sys.argv[1] in ("--help", "-h"):
+        print("Libre Merger — Automated Document Merger")
+        print("Usage: libre-merger [file1 file2 ...]")
+        print("Options:")
+        print("  -v, --version    Show program's version number and exit")
+        print("  -h, --help       Show this help message and exit")
+        sys.exit(0)
+
     app = LibreMergerApp()
+    initial_files = [arg for arg in sys.argv[1:] if os.path.exists(arg)]
+    if initial_files:
+        app.queue_files(initial_files)
     app.mainloop()

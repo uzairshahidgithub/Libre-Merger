@@ -1,0 +1,21 @@
+# Virtual Environments
+**/.venv/
+**/.venv*/
+**/env/
+**/venv/
+**/ENV/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Build artifacts
+build/deb/
+build/libre-merger/
+dist/libre-merger
+libre-merger.spec
+
+# Logs
+*.log
